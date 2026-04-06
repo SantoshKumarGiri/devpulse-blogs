@@ -1,9 +1,9 @@
 package com.devpulse.model;
 
-import lombok.Data;
-import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
@@ -21,48 +21,53 @@ public class Article {
     @Id
     private String id;
 
+    // ── Content ──────────────────────────────────────────────
     private String title;
     private String subtitle;
+
+    // body is stored exactly as the user typed — no encoding/stripping
     private String body;
+
     private String tags;
     private String emoji;
 
+    // ── Cover image ──────────────────────────────────────────
+    // Optional: either a base64 data URL, a Cloudinary URL, or any HTTPS image URL
+    // If set, displayed instead of emoji on the article page
+    private String coverImageUrl;
+
+    // ── Author ───────────────────────────────────────────────
+    private String authorId;
+    private String authorName;
+    private String authorInitials;
+
+    // ── Status ───────────────────────────────────────────────
     @Builder.Default
     private boolean draft = false;
 
-    @Builder.Default
-    private int likes = 0;
-
-    @Builder.Default
-    private boolean liked = false;
-
-    @Builder.Default
-    private boolean bookmarked = false;
-
-    @Builder.Default
-    private long reads = 0;
+    // ── Engagement ───────────────────────────────────────────
+    @Builder.Default private int     likes      = 0;
+    @Builder.Default private boolean liked      = false;
+    @Builder.Default private boolean bookmarked = false;
+    @Builder.Default private long    reads      = 0;
 
     @Builder.Default
     private List<Comment> comments = new ArrayList<>();
 
-    @Builder.Default
-    private Instant createdAt = Instant.now();
+    // ── Timestamps ───────────────────────────────────────────
+    @Builder.Default private Instant createdAt = Instant.now();
+    @Builder.Default private Instant updatedAt = Instant.now();
 
-    @Builder.Default
-    private Instant updatedAt = Instant.now();
-
-    // ── Inner class for embedded comments ──
+    // ── Embedded comment ─────────────────────────────────────
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
     @Builder
     public static class Comment {
-        @Builder.Default
-        private String name = "Santosh Kumar Giri";
-        @Builder.Default
-        private String initials = "SK";
-        private String text;
-        @Builder.Default
-        private Instant ts = Instant.now();
+        private String  authorId;
+        @Builder.Default private String  name     = "Anonymous";
+        @Builder.Default private String  initials = "?";
+        private String  text;
+        @Builder.Default private Instant ts = Instant.now();
     }
 }

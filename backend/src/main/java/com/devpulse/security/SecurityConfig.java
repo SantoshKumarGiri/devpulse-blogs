@@ -9,6 +9,8 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
@@ -22,30 +24,50 @@ import java.util.List;
 @EnableWebSecurity
 public class SecurityConfig {
 
-    @Autowired
-    private JwtAuthFilter jwtAuthFilter;
+    @Autowired private JwtAuthFilter jwtAuthFilter;
 
     @Value("${app.cors.allowed-origins}")
     private String allowedOrigins;
 
     @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+
+    @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
             .csrf(AbstractHttpConfigurer::disable)
-            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+            .cors(c -> c.configurationSource(corsSource()))
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                // Public auth endpoints
-                .requestMatchers("/api/auth/**").permitAll()
-                // Other public endpoints
+
+                // ── Public (no login needed) ─────────────────────
+                .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/auth/register").permitAll()
+                .requestMatchers(HttpMethod.GET,  "/api/auth/me").permitAll()
                 .requestMatchers(HttpMethod.GET,  "/api/articles").permitAll()
+                .requestMatchers(HttpMethod.GET,  "/api/articles/search").permitAll()
                 .requestMatchers(HttpMethod.GET,  "/api/articles/{id}").permitAll()
                 .requestMatchers(HttpMethod.PATCH,"/api/articles/{id}/read").permitAll()
-                .requestMatchers(HttpMethod.GET,  "/api/articles/search").permitAll()
+                .requestMatchers(HttpMethod.GET,  "/api/users/{id}/public").permitAll()
+                .requestMatchers(HttpMethod.GET,  "/api/users/{id}/articles").permitAll()
                 .requestMatchers(HttpMethod.GET,  "/").permitAll()
-                .requestMatchers(HttpMethod.GET,  "/actuator/health").permitAll()
-                // Everything else requires admin role
-                .anyRequest().hasRole("ADMIN")
+
+                // ── AUTHOR or ADMIN: write articles + upload images ─
+                .requestMatchers(HttpMethod.POST,   "/api/articles").hasAnyRole("AUTHOR","ADMIN")
+                .requestMatchers(HttpMethod.PUT,    "/api/articles/{id}").hasAnyRole("AUTHOR","ADMIN")
+                .requestMatchers(HttpMethod.DELETE, "/api/articles/{id}").hasAnyRole("AUTHOR","ADMIN")
+                .requestMatchers(HttpMethod.GET,    "/api/articles/drafts").hasAnyRole("AUTHOR","ADMIN")
+                .requestMatchers(HttpMethod.PATCH,  "/api/articles/{id}/like").hasAnyRole("AUTHOR","ADMIN")
+                .requestMatchers(HttpMethod.PATCH,  "/api/articles/{id}/bookmark").hasAnyRole("AUTHOR","ADMIN")
+                .requestMatchers(HttpMethod.POST,   "/api/articles/{id}/comments").hasAnyRole("AUTHOR","ADMIN")
+                .requestMatchers(HttpMethod.POST,   "/api/images/upload").hasAnyRole("AUTHOR","ADMIN")
+
+                // ── ADMIN only ────────────────────────────────────
+                .requestMatchers("/api/admin/**").hasRole("ADMIN")
+
+                .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
@@ -53,18 +75,14 @@ public class SecurityConfig {
     }
 
     @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration config = new CorsConfiguration();
-
-        // Split comma-separated origins from config
-        List<String> origins = Arrays.asList(allowedOrigins.split(","));
-        config.setAllowedOriginPatterns(origins);
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("*"));
-        config.setAllowCredentials(true);
-
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", config);
-        return source;
+    public CorsConfigurationSource corsSource() {
+        CorsConfiguration cfg = new CorsConfiguration();
+        cfg.setAllowedOriginPatterns(Arrays.asList(allowedOrigins.split(",")));
+        cfg.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
+        cfg.setAllowedHeaders(List.of("*"));
+        cfg.setAllowCredentials(true);
+        UrlBasedCorsConfigurationSource src = new UrlBasedCorsConfigurationSource();
+        src.registerCorsConfiguration("/**", cfg);
+        return src;
     }
 }

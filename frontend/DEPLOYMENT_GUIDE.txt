@@ -1,0 +1,211 @@
+# DevPulse v2 — Complete Deployment Guide
+# MongoDB Atlas (free) + Railway (free) + GitHub Pages (free)
+# Total cost: ₹0 / month
+
+═══════════════════════════════════════════════════════════
+ STEP 1 — LOCAL SETUP (get it running on your laptop first)
+═══════════════════════════════════════════════════════════
+
+1. Place all files in this folder structure:
+   devpulse/
+   ├── .env                   ← copy from .env.example and fill in
+   ├── docker-compose.yml
+   ├── backend/               ← Spring Boot project
+   └── frontend/              ← Angular project
+
+2. Copy the env file and edit it:
+   cp .env.example .env
+
+   Open .env and set:
+   - JWT_SECRET   = any long random string (min 32 chars)
+   - ADMIN_EMAIL  = your email
+   - ADMIN_PASSWORD = your password
+
+3. Start everything with one command:
+   docker-compose up --build
+
+4. Open http://localhost:4200
+   - Click "Get started →" to register as a user
+   - Click "Sign in" and use your ADMIN_EMAIL + ADMIN_PASSWORD for admin access
+
+═══════════════════════════════════════════════════════════
+ STEP 2 — MONGODB ATLAS (free cloud database)
+═══════════════════════════════════════════════════════════
+
+1. Go to https://cloud.mongodb.com → create a free account
+
+2. Click "Build a Database" → choose M0 Free → AWS → Mumbai region
+
+3. Create a database user:
+   Username: devpulse_user
+   Password: (generate a strong password, save it!)
+
+4. Network Access → Add IP → type: 0.0.0.0/0 → Confirm
+   (This allows Railway to connect from any IP)
+
+5. Click "Connect" → "Drivers" → Node.js
+   Copy the connection string. It looks like:
+   mongodb+srv://devpulse_user:PASSWORD@cluster0.xxxxx.mongodb.net/?retryWrites=true&w=majority
+
+6. Edit it — add /devpulse before the ?:
+   mongodb+srv://devpulse_user:PASSWORD@cluster0.xxxxx.mongodb.net/devpulse?retryWrites=true&w=majority
+
+   Save this string — you need it in Step 3.
+
+═══════════════════════════════════════════════════════════
+ STEP 3 — DEPLOY BACKEND TO RAILWAY
+═══════════════════════════════════════════════════════════
+
+1. Create a new GitHub repository called "devpulse-backend" (public or private)
+
+2. Push your backend/ folder contents to it:
+   cd backend
+   git init
+   git add .
+   git commit -m "DevPulse Spring Boot backend"
+   git branch -M main
+   git remote add origin https://github.com/YOUR_USERNAME/devpulse-backend.git
+   git push -u origin main
+
+3. Go to https://railway.app → sign up with GitHub → New Project
+
+4. Click "Deploy from GitHub repo" → select devpulse-backend
+
+5. Railway will detect the Dockerfile and start building.
+   Wait for the first build (takes ~3 minutes).
+
+6. Click your project → go to "Variables" tab → click "Raw Editor"
+   Paste this (replace the values with yours):
+
+   MONGODB_URI=mongodb+srv://devpulse_user:YOUR_PASS@cluster0.xxx.mongodb.net/devpulse?retryWrites=true&w=majority
+   JWT_SECRET=your_long_random_secret_string_min_32_chars
+   ADMIN_EMAIL=your@email.com
+   ADMIN_PASSWORD=your_admin_password
+   CORS_ORIGINS=https://YOUR_GITHUB_USERNAME.github.io
+   PORT=8080
+
+7. Click "Settings" → "Domains" → "Generate Domain"
+   You'll get a URL like:
+   https://devpulse-backend-production.up.railway.app
+
+   ⭐ COPY THIS URL — you need it in Step 4.
+
+8. Test it! Open your Railway URL in browser:
+   https://devpulse-backend-production.up.railway.app/
+   You should see: {"status": "DevPulse API running"}
+
+═══════════════════════════════════════════════════════════
+ STEP 4 — UPDATE ANGULAR ENVIRONMENT
+═══════════════════════════════════════════════════════════
+
+Open this file in your project:
+frontend/src/environments/environment.prod.ts
+
+Change the apiUrl to your Railway URL:
+
+  export const environment = {
+    production: true,
+    apiUrl: 'https://devpulse-backend-production.up.railway.app'
+  };
+
+Save the file.
+
+═══════════════════════════════════════════════════════════
+ STEP 5 — DEPLOY FRONTEND TO GITHUB PAGES
+═══════════════════════════════════════════════════════════
+
+1. Create a new GitHub repository called "devpulse" (must be public for free GitHub Pages)
+
+2. Push your frontend/ folder contents:
+   cd frontend
+   git init
+   git add .
+   git commit -m "DevPulse Angular frontend"
+   git branch -M main
+   git remote add origin https://github.com/YOUR_USERNAME/devpulse.git
+   git push -u origin main
+
+3. Install the GitHub Pages deploy tool (one time only):
+   npm install -g angular-cli-ghpages
+
+4. Install frontend dependencies:
+   npm install
+
+5. Build for production with the correct base URL:
+   ng build --configuration production \
+     --base-href "https://YOUR_USERNAME.github.io/devpulse/"
+
+   Replace YOUR_USERNAME with your actual GitHub username.
+   Example: --base-href "https://santoshkumargiri.github.io/devpulse/"
+
+6. Deploy to GitHub Pages:
+   npx angular-cli-ghpages --dir=dist/devpulse-frontend/browser
+
+7. Wait 1-2 minutes, then open:
+   https://YOUR_USERNAME.github.io/devpulse/
+
+   ✅ Your blog is live!
+
+═══════════════════════════════════════════════════════════
+ STEP 6 — FIRST LOGIN ON YOUR LIVE SITE
+═══════════════════════════════════════════════════════════
+
+1. Open your GitHub Pages URL
+2. Click "Sign in"
+3. Use the ADMIN_EMAIL and ADMIN_PASSWORD you set in Railway variables
+4. You should see "✓ Admin" badge in the navbar
+5. Click "✍ Write" to publish your first article!
+
+═══════════════════════════════════════════════════════════
+ UPDATING YOUR SITE LATER
+═══════════════════════════════════════════════════════════
+
+Backend (after code changes):
+  cd backend
+  git add . && git commit -m "Update" && git push
+  # Railway auto-redeploys in ~2 minutes
+
+Frontend (after code changes):
+  cd frontend
+  ng build --configuration production \
+    --base-href "https://YOUR_USERNAME.github.io/devpulse/"
+  npx angular-cli-ghpages --dir=dist/devpulse-frontend/browser
+  # Goes live in ~1 minute
+
+═══════════════════════════════════════════════════════════
+ TROUBLESHOOTING
+═══════════════════════════════════════════════════════════
+
+Problem: "Cannot reach backend" on the live site
+Fix: Check Railway → your app should be "Active" (green).
+     Check that CORS_ORIGINS includes your GitHub Pages URL exactly.
+     Check browser DevTools → Network tab for the failing request.
+
+Problem: "Wrong password" on login
+Fix: Double-check ADMIN_EMAIL and ADMIN_PASSWORD in Railway Variables tab.
+
+Problem: Articles don't load
+Fix: Open browser DevTools → Console. Look for CORS errors.
+     Make sure CORS_ORIGINS=https://YOUR_USERNAME.github.io in Railway.
+
+Problem: Page shows blank on GitHub Pages
+Fix: Make sure --base-href matches your exact GitHub Pages URL including trailing /.
+     The URL must be: https://USERNAME.github.io/REPO_NAME/
+
+Problem: Railway app "crashed" or won't start
+Fix: Railway → your project → "View logs". Most common cause:
+     MONGODB_URI is wrong — check the Atlas connection string carefully.
+
+═══════════════════════════════════════════════════════════
+ FILE PLACEMENT GUIDE
+═══════════════════════════════════════════════════════════
+
+Angular files from this package → where they go in your project:
+
+  register.component.ts  → frontend/src/app/pages/register/register.component.ts  (NEW)
+  login.component.ts     → frontend/src/app/pages/login/login.component.ts        (NEW)
+  author.component.ts    → frontend/src/app/pages/author/author.component.ts      (NEW)
+  navbar.component.ts    → frontend/src/app/components/navbar/navbar.component.ts (REPLACE)
+  app.routes.ts          → frontend/src/app/app.routes.ts                         (REPLACE)
+  auth.guard.ts          → frontend/src/app/guards/auth.guard.ts                  (REPLACE)
+  .env.example           → devpulse/.env.example  (then copy to .env)             (NEW)
