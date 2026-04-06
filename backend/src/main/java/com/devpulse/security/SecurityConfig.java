@@ -50,8 +50,8 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET,  "/api/articles/search").permitAll()
                 .requestMatchers(HttpMethod.GET,  "/api/articles/{id}").permitAll()
                 .requestMatchers(HttpMethod.PATCH,"/api/articles/{id}/read").permitAll()
-                .requestMatchers(HttpMethod.GET,  "/api/users/{id}/public").permitAll()
-                .requestMatchers(HttpMethod.GET,  "/api/users/{id}/articles").permitAll()
+                .requestMatchers(HttpMethod.GET,  "/api/users/*/public").permitAll()
+                .requestMatchers(HttpMethod.GET,  "/api/users/*/articles").permitAll()
                 .requestMatchers(HttpMethod.GET,  "/").permitAll()
 
                 // ── AUTHOR or ADMIN: write articles + upload images ─

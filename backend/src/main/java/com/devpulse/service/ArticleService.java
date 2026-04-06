@@ -34,6 +34,10 @@ public class ArticleService {
         return articleRepository.searchPublished(query);
     }
 
+    public List<Article> getPublishedByAuthor(String authorId) {
+        return articleRepository.findByDraftFalseAndAuthorIdOrderByCreatedAtDesc(authorId);
+    }
+
     public List<Article> getBookmarked() {
         return articleRepository.findByDraftFalseAndBookmarkedTrueOrderByCreatedAtDesc();
     }

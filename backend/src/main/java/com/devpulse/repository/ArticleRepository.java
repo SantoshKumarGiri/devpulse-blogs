@@ -23,6 +23,9 @@ public interface ArticleRepository extends MongoRepository<Article, String> {
            "{ 'tags':  { $regex: ?0, $options: 'i' } } ] }")
     List<Article> searchPublished(String query);
 
+    // Articles by author
+    List<Article> findByDraftFalseAndAuthorIdOrderByCreatedAtDesc(String authorId);
+
     // Bookmarked articles
     List<Article> findByDraftFalseAndBookmarkedTrueOrderByCreatedAtDesc();
 }
