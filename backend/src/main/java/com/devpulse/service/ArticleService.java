@@ -50,6 +50,7 @@ public class ArticleService {
                 .body(dto.getBody())
                 .tags(dto.getTags())
                 .emoji(dto.getEmoji() != null ? dto.getEmoji() : "📝")
+                .coverImageUrl(dto.getCoverImageUrl())
                 .draft(dto.isDraft())
                 .createdAt(Instant.now())
                 .updatedAt(Instant.now())
@@ -65,6 +66,7 @@ public class ArticleService {
             existing.setBody(dto.getBody());
             existing.setTags(dto.getTags());
             if (dto.getEmoji() != null) existing.setEmoji(dto.getEmoji());
+            if (dto.getCoverImageUrl() != null) existing.setCoverImageUrl(dto.getCoverImageUrl());
             existing.setDraft(dto.isDraft());
             existing.setUpdatedAt(Instant.now());
             return articleRepository.save(existing);

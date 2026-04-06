@@ -14,4 +14,5 @@ public class ArticleDto {
     private String tags;
     private String emoji;
     private boolean draft;
+    private String coverImageUrl;
 }
