@@ -28,16 +28,22 @@ export class AuthService {
   }
 
   login(payload: LoginRequest) {
-    return this.api.login({ password: payload.password }).pipe(
+    return this.api.login(payload).pipe(
       tap((res: AuthResponse) => {
         localStorage.setItem(this.TOKEN_KEY, res.token);
         const user: AuthUser = {
-          id: 'admin',
-          name: payload.email || 'Admin User',
-          email: payload.email || 'admin@devpulse.local',
-          role: 'ADMIN',
-          avatarInitials: 'AD'
+          id: 'author',
+          name: payload.email || 'Author',
+          email: payload.email || 'author@devpulse.local',
+          role: 'AUTHOR',
+          avatarInitials: (payload.email || 'A').slice(0, 2).toUpperCase()
         };
+        if (payload.email?.toLowerCase() === 'admin@devpulse.com') {
+          user.id = 'admin';
+          user.name = 'Admin';
+          user.role = 'ADMIN';
+          user.avatarInitials = 'AD';
+        }
         localStorage.setItem(this.USER_KEY, JSON.stringify(user));
         this.currentUser.set(user);
         this.isLoggedIn.set(true);
