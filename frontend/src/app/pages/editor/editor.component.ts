@@ -37,7 +37,7 @@ import { ArticleDto } from '../../models/article.model';
         <button class="tbtn" title="Bullet list"  (click)="ins('- item\n- item\n- item')">• List</button>
         <button class="tbtn" title="Ordered list" (click)="ins('1. First\n2. Second\n3. Third')">1. List</button>
         <span class="tsep"></span>
-        <button class="tbtn mono" title="Code block" (click)="ins('```\ncode here\n```')">{ }</button>
+        <button class="tbtn mono" title="Code block" (click)="ins('\u0060\u0060\u0060\ncode here\n\u0060\u0060\u0060')">&lt;/&gt;</button>
         <button class="tbtn" title="Blockquote"  (click)="ins('> Your quote here')">❝</button>
         <button class="tbtn" title="Divider"     (click)="ins('---')">—</button>
         <span class="tsep"></span>
@@ -156,7 +156,7 @@ You can paste emoji, special characters, and symbols directly — they all work!
         <span>💡 Tips:</span>
         <span>Paste emoji directly ✓</span>
         <span>•</span>
-        <span>Use ``` for code blocks ✓</span>
+        <span>Use \`\`\` for code blocks ✓</span>
         <span>•</span>
         <span>Upload or link a cover photo above ✓</span>
       </div>
@@ -411,8 +411,9 @@ export class EditorComponent implements OnInit {
   }
 
   // Handle Tab key — insert 2 spaces instead of losing focus
-  onTab(event: KeyboardEvent) {
-    event.preventDefault();
+  onTab(event: Event) {
+    const keyboardEvent = event as KeyboardEvent;
+    keyboardEvent.preventDefault();
     this.ins('  ');
   }
 

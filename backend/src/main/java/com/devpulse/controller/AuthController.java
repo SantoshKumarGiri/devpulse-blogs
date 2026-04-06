@@ -33,6 +33,22 @@ public class AuthController {
         return ResponseEntity.ok(new AuthDto.LoginResponse(token, "Login successful"));
     }
 
+    // POST /api/auth/register
+    @PostMapping("/register")
+    public ResponseEntity<?> register(@RequestBody AuthDto.RegisterRequest request) {
+        if (request.getName() == null || request.getName().isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Name is required"));
+        }
+        if (request.getEmail() == null || request.getEmail().isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Email is required"));
+        }
+        if (request.getPassword() == null || request.getPassword().isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Password is required"));
+        }
+        String token = jwtUtil.generateToken();
+        return ResponseEntity.ok(new AuthDto.LoginResponse(token, "Registration successful"));
+    }
+
     // GET /api/auth/me  — verify token is valid
     @GetMapping("/me")
     public ResponseEntity<?> me(Authentication authentication) {
