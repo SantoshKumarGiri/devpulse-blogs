@@ -1,88 +1,76 @@
 package com.devpulse.security;
 
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpMethod;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
-import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.CorsConfigurationSource;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
 
-import java.util.Arrays;
-import java.util.List;
+import java.io.IOException;
 
-@Configuration
-@EnableWebSecurity
-public class SecurityConfig {
+@Component
+public class JwtAuthFilter extends OncePerRequestFilter {
 
-    @Autowired private JwtAuthFilter jwtAuthFilter;
+    @Autowired
+    private JwtUtil jwtUtil;
 
-    @Value("${app.cors.allowed-origins}")
-    private String allowedOrigins;
+    @Autowired
+    private UserDetailsService userDetailsService;
 
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
+    @Override
+    protected void doFilterInternal(HttpServletRequest request,
+                                    HttpServletResponse response,
+                                    FilterChain filterChain)
+            throws ServletException, IOException {
 
-    @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http
-            .csrf(AbstractHttpConfigurer::disable)
-            .cors(c -> c.configurationSource(corsSource()))
-            .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(auth -> auth
+        String path = request.getServletPath();
 
-                // ── Public (no login needed) ─────────────────────
-                .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/auth/register").permitAll()
-                .requestMatchers(HttpMethod.GET,  "/api/auth/me").permitAll()
-                .requestMatchers(HttpMethod.GET,  "/api/articles").permitAll()
-                .requestMatchers(HttpMethod.GET,  "/api/articles/search").permitAll()
-                .requestMatchers(HttpMethod.GET,  "/api/articles/{id}").permitAll()
-                .requestMatchers(HttpMethod.PATCH,"/api/articles/{id}/read").permitAll()
-                .requestMatchers(HttpMethod.GET,  "/api/users/*/public").permitAll()
-                .requestMatchers(HttpMethod.GET,  "/api/users/*/articles").permitAll()
-                .requestMatchers(HttpMethod.GET,  "/").permitAll()
+        // ✅ ONLY skip authentication endpoints (SECURE)
+        if (path.startsWith("/api/auth")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
 
-                // ── AUTHOR or ADMIN: write articles + upload images ─
-                .requestMatchers(HttpMethod.POST,   "/api/articles").hasAnyRole("AUTHOR","ADMIN")
-                .requestMatchers(HttpMethod.PUT,    "/api/articles/{id}").hasAnyRole("AUTHOR","ADMIN")
-                .requestMatchers(HttpMethod.DELETE, "/api/articles/{id}").hasAnyRole("AUTHOR","ADMIN")
-                .requestMatchers(HttpMethod.GET,    "/api/articles/drafts").hasAnyRole("AUTHOR","ADMIN")
-                .requestMatchers(HttpMethod.PATCH,  "/api/articles/{id}/like").hasAnyRole("AUTHOR","ADMIN")
-                .requestMatchers(HttpMethod.PATCH,  "/api/articles/{id}/bookmark").hasAnyRole("AUTHOR","ADMIN")
-                .requestMatchers(HttpMethod.POST,   "/api/articles/{id}/comments").hasAnyRole("AUTHOR","ADMIN")
-                .requestMatchers(HttpMethod.POST,   "/api/images/upload").hasAnyRole("AUTHOR","ADMIN")
+        final String authHeader = request.getHeader("Authorization");
+        String token = null;
+        String username = null;
 
-                // ── ADMIN only ────────────────────────────────────
-                .requestMatchers("/api/admin/**").hasRole("ADMIN")
+        // Extract JWT
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            token = authHeader.substring(7);
+            username = jwtUtil.extractUsername(token);
+        }
 
-                .anyRequest().authenticated()
-            )
-            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+        // Validate JWT
+        if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
 
-        return http.build();
-    }
+            UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 
-    @Bean
-    public CorsConfigurationSource corsSource() {
-        CorsConfiguration cfg = new CorsConfiguration();
-        cfg.setAllowedOriginPatterns(Arrays.asList(allowedOrigins.split(",")));
-        cfg.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
-        cfg.setAllowedHeaders(List.of("*"));
-        cfg.setAllowCredentials(true);
-        UrlBasedCorsConfigurationSource src = new UrlBasedCorsConfigurationSource();
-        src.registerCorsConfiguration("/**", cfg);
-        return src;
+            if (jwtUtil.validateToken(token, userDetails)) {
+
+                UsernamePasswordAuthenticationToken authToken =
+                        new UsernamePasswordAuthenticationToken(
+                                userDetails,
+                                null,
+                                userDetails.getAuthorities()
+                        );
+
+                authToken.setDetails(
+                        new WebAuthenticationDetailsSource().buildDetails(request)
+                );
+
+                SecurityContextHolder.getContext().setAuthentication(authToken);
+            }
+        }
+
+        filterChain.doFilter(request, response);
     }
 }
