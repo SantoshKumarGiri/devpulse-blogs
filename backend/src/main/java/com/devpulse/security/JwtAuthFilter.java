@@ -4,6 +4,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -27,17 +28,28 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                                     FilterChain filterChain)
             throws ServletException, IOException {
 
+        String path = request.getRequestURI();
+
+        // ✅ Skip auth endpoints
+        if (path.contains("/api/auth")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         String token = extractToken(request);
 
         if (StringUtils.hasText(token) && jwtUtil.validateToken(token)) {
+
             String subject = jwtUtil.getSubjectFromToken(token);
             String role = jwtUtil.getRoleFromToken(token);
+
             UsernamePasswordAuthenticationToken auth =
-                new UsernamePasswordAuthenticationToken(
-                    subject,
-                    null,
-                    List.of(new SimpleGrantedAuthority("ROLE_" + (role != null ? role : "AUTHOR")))
-                );
+                    new UsernamePasswordAuthenticationToken(
+                            subject,
+                            null,
+                            List.of(new SimpleGrantedAuthority("ROLE_" + role))
+                    );
+
             SecurityContextHolder.getContext().setAuthentication(auth);
         }
 
@@ -46,9 +58,11 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
     private String extractToken(HttpServletRequest request) {
         String header = request.getHeader("Authorization");
+
         if (StringUtils.hasText(header) && header.startsWith("Bearer ")) {
             return header.substring(7);
         }
+
         return null;
     }
 }
